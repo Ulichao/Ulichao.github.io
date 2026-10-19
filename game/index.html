@@ -109,6 +109,45 @@ body {
 			<div id="status-notice"></div>
 		</div>
 
+		<!--godot-webaudio-unlock-->
+<script>
+(function () {
+	// Remember every AudioContext Godot creates.
+	var Orig = window.AudioContext || window.webkitAudioContext;
+	if (!Orig) { return; }
+	var contexts = [];
+	function WrappedAudioContext() {
+		var ctx = Reflect.construct(Orig, Array.prototype.slice.call(arguments), WrappedAudioContext);
+		contexts.push(ctx);
+		window.__godotAudioContext = ctx;
+		return ctx;
+	}
+	WrappedAudioContext.prototype = Object.create(Orig.prototype);
+	WrappedAudioContext.prototype.constructor = WrappedAudioContext;
+	window.AudioContext = WrappedAudioContext;
+	if (window.webkitAudioContext) { window.webkitAudioContext = WrappedAudioContext; }
+
+	// Must run inside the gesture itself, so use capture phase and keep it cheap.
+	function unlock() {
+		for (var i = 0; i < contexts.length; i++) {
+			var ctx = contexts[i];
+			try {
+				if (ctx && ctx.state !== 'running') { ctx.resume(); }
+			} catch (e) { /* ignore */ }
+		}
+	}
+	var events = ['touchstart', 'touchend', 'touchcancel', 'mousedown', 'mouseup',
+		'click', 'keydown', 'pointerdown', 'pointerup'];
+	for (var j = 0; j < events.length; j++) {
+		window.addEventListener(events[j], unlock, true);
+		document.addEventListener(events[j], unlock, true);
+	}
+	document.addEventListener('visibilitychange', function () {
+		if (!document.hidden) { unlock(); }
+	}, false);
+	window.__unlockGodotAudio = unlock;
+})();
+</script>
 		<script src="index.js"></script>
 		<script>
 const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":19218944,"index.wasm":37695054},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
